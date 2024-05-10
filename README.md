@@ -1,14 +1,15 @@
 # Build an Orchestator in Go
-
+```
 The purpose of this project is to learn the ins and outs of how an orchestrator works.
 An orchestrator is a system that provides automation for deploying, scaling,
 and managing containers. An orchestration system has the following components 
 - task, job, scheduler, manager, worker, cluster, and cli
-
+```
 ## Task
 
 The task is the smallest unit of work in an orchestration system and typically
-runs in a container, like a process taht runs on a single machine.
+runs in a container, like a process that runs on a single machine. A task can be
+in one of five states: Pending, Scheduled, Running, Completed, or Failed.
 
 ## Job
 
