@@ -16,19 +16,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type State int
-
-const (
-	Pending State = iota
-	Scheduled
-	Running
-	Completed
-	Failed
-)
-
 // Task represents a task that a user wants to run on cluster
 type Task struct {
 	ID            uuid.UUID
+	ContainerID   string
 	Name          string
 	State         State
 	Image         string // what docker image task should use
@@ -80,9 +71,8 @@ func NewConfig(t *Task) *Config {
 
 // Docker represents the Docker container
 type Docker struct {
-	Client      *client.Client // Docker client object
-	Config      Config         //holds the task configuration
-	ContainerId string         // used to interact with the running task
+	Client *client.Client // Docker client object
+	Config Config         //holds the task configuration
 }
 
 func NewDocker(c *Config) *Docker {
