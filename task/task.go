@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
@@ -32,8 +32,8 @@ type Task struct {
 	Name          string
 	State         State
 	Image         string // what docker image task should use
-	Memory        int    // amount of memory needed
-	Disk          int    // amount of disk space needed
+	Memory        int64  // amount of memory needed
+	Disk          int64  // amount of disk space needed
 	ExposedPorts  nat.PortSet
 	PortBindings  map[string]string
 	RestartPolicy string // ["", "always", "unless-stopped", "on-failure"]
@@ -56,6 +56,7 @@ type Config struct {
 	AttachStdin  bool
 	AttachStdout bool
 	Attachstderr bool
+	ExposedPorts nat.PortSet // list of ports exposed
 	Cmd          []string
 	Image        string // Image used to run the container
 	// Memory and Disk serves two purposes:
@@ -66,11 +67,27 @@ type Config struct {
 	RestartPolicy string   // tells Docker daemon what to do in event container dies
 }
 
+func NewConfig(t *Task) *Config {
+	return &Config{
+		Name:          t.Name,
+		ExposedPorts:  t.ExposedPorts,
+		Image:         t.Image,
+		Memory:        t.Memory,
+		Disk:          t.Disk,
+		RestartPolicy: t.RestartPolicy,
+	}
+}
+
 // Docker represents the Docker container
 type Docker struct {
 	Client      *client.Client // Docker client object
 	Config      Config         //holds the task configuration
 	ContainerId string         // used to interact with the running task
+}
+
+func NewDocker(c *Config) *Docker {
+	dc, _ := client.NewClientWithOpts(client.FromEnv)
+	return &Docker{Client: dc, Config: *c}
 }
 
 // DockerResult represents the Docker results
@@ -84,7 +101,7 @@ type DockerResult struct {
 // Run pulls the container's image
 func (d *Docker) Run() DockerResult {
 	ctx := context.Background()
-	reader, err := d.Client.ImagePull(ctx, d.Config.Image, image.PullOptions{})
+	reader, err := d.Client.ImagePull(ctx, d.Config.Image, types.ImagePullOptions{})
 	if err != nil {
 		log.Printf("Error pulling image %s: %v\n", d.Config.Image, err)
 		return DockerResult{Error: err}
@@ -92,15 +109,17 @@ func (d *Docker) Run() DockerResult {
 	io.Copy(os.Stdout, reader)
 
 	rp := container.RestartPolicy{
-		Name: container.RestartPolicyMode(d.Config.RestartPolicy),
+		Name: d.Config.RestartPolicy,
 	}
 
 	r := container.Resources{
 		Memory: d.Config.Memory,
 	}
 	cc := container.Config{
-		Image: d.Config.Image,
-		Env:   d.Config.Env,
+		Image:        d.Config.Image,
+		Tty:          false,
+		Env:          d.Config.Env,
+		ExposedPorts: d.Config.ExposedPorts,
 	}
 	hc := container.HostConfig{
 		RestartPolicy:   rp,
@@ -112,13 +131,13 @@ func (d *Docker) Run() DockerResult {
 		log.Printf("Error creating container using image %s: %v\n", d.Config.Image, err)
 		return DockerResult{Error: err}
 	}
-	err = d.Client.ContainerStart(ctx, resp.ID, container.StartOptions{})
+	err = d.Client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
 	if err != nil {
 		log.Printf("Error starting container %s: %v\n", resp.ID, err)
 		return DockerResult{Error: err}
 	}
 
-	out, err := d.Client.ContainerLogs(ctx, resp.ID, container.LogsOptions{
+	out, err := d.Client.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 	})
@@ -140,7 +159,7 @@ func (d *Docker) Stop(id string) DockerResult {
 		fmt.Printf("Error stopping container %s: %v\n", id, err)
 		return DockerResult{Error: err}
 	}
-	err = d.Client.ContainerRemove(ctx, id, container.RemoveOptions{
+	err = d.Client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		RemoveLinks:   false,
 		Force:         false,
