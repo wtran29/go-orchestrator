@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -19,8 +20,37 @@ type Worker struct {
 }
 
 // RunTask handles running a task on the machine where worker is running
-func (w *Worker) RunTask() {
-	fmt.Println("start or stop a task")
+func (w *Worker) RunTask() task.DockerResult {
+	// pull task out of the queue
+	t := w.Queue.Dequeue()
+	if t == nil {
+		log.Println("No tasks in the queue")
+		return task.DockerResult{Error: nil}
+	}
+	// convert task from an interface to a task.Task type
+	taskQueued := t.(task.Task)
+	// retrieve task from worker's Db
+	taskPersisted := w.Db[taskQueued.ID]
+	if taskPersisted == nil {
+		taskPersisted = &taskQueued
+		w.Db[taskQueued.ID] = &taskQueued
+	}
+	var result task.DockerResult
+	if task.ValidStateTransition(taskPersisted.State, taskQueued.State) {
+		switch taskQueued.State {
+		case task.Scheduled:
+			result = w.StartTask(taskQueued)
+		case task.Completed:
+			result = w.StopTask(taskQueued)
+		default:
+			result.Error = errors.New("we should not get here")
+		}
+	} else {
+		err := fmt.Errorf("invalid transition from %v to %v", taskPersisted.State, taskQueued.State)
+		result.Error = err
+		return result
+	}
+	return result
 }
 
 func (w *Worker) AddTask(t task.Task) {
