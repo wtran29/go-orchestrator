@@ -2,79 +2,48 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
-	"github.com/wtran29/go-orchestrator/manager"
-	"github.com/wtran29/go-orchestrator/node"
 	"github.com/wtran29/go-orchestrator/task"
 	"github.com/wtran29/go-orchestrator/worker"
 )
 
 func main() {
-	t := task.Task{
-		ID:     uuid.New(),
-		Name:   "Task-1",
-		State:  task.Pending,
-		Image:  "Image-1",
-		Memory: 1024,
-		Disk:   1,
-	}
-	te := task.TaskEvent{
-		ID:        uuid.New(),
-		State:     task.Pending,
-		Timestamp: time.Now(),
-		Task:      t,
-	}
-	fmt.Printf("task: %v\n", t)
-	fmt.Printf("task event: %v\n", te)
-
+	db := make(map[uuid.UUID]*task.Task)
 	w := worker.Worker{
 		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]task.Task),
+		Db:    db,
 	}
-	fmt.Printf("worker: %v\n", w)
-	w.CollectStats()
-	w.RunTask()
-	w.StartTask()
-	w.StopTask()
-
-	m := manager.Manager{
-		Pending: *queue.New(),
-		TaskDb:  make(map[string][]task.Task),
-		EventDb: make(map[string][]task.TaskEvent),
-		Workers: []string{w.Name},
+	t := task.Task{
+		ID:    uuid.New(),
+		Name:  "test-container-1",
+		State: task.Scheduled,
+		Image: "strm/helloworld-http",
 	}
 
-	fmt.Printf("manager: %v\n", m)
-	m.SelectWorker()
-	m.UpdateTasks()
-	m.SendWork()
-
-	n := node.Node{
-		Name:   "Node-1",
-		Ip:     "192.168.1.1",
-		Cores:  4,
-		Memory: 1024,
-		Disk:   25,
-		Role:   "worker",
+	// first time the worker will see the task
+	fmt.Println("starting task")
+	w.AddTask(t)
+	result := w.RunTask()
+	if result.Error != nil {
+		panic(result.Error)
 	}
-	fmt.Printf("node: %v\n", n)
+	t.ContainerID = result.ContainerId
 
-	fmt.Printf("create a test container\n")
+	fmt.Printf("task %s is running in container %s\n", t.ID, t.ContainerID)
+	fmt.Println("sleep...")
+	time.Sleep(30 * time.Second)
 
-	dockerTask, createResult := createContainer()
-	if createResult.Error != nil {
-		fmt.Println(createResult.Error)
-		os.Exit(1)
+	fmt.Printf("stopping task %s\n", t.ID)
+	t.State = task.Completed
+	w.AddTask(t)
+	result = w.RunTask()
+	if result.Error != nil {
+		panic(result.Error)
 	}
-	time.Sleep(time.Second * 5)
-
-	fmt.Printf("stopping container %s\n", createResult.ContainerId)
-	_ = stopContainer(dockerTask, createResult.ContainerId)
 }
 
 func createContainer() (*task.Docker, *task.DockerResult) {
