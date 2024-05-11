@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/docker/docker/client"
@@ -62,6 +63,18 @@ func main() {
 		Role:   "worker",
 	}
 	fmt.Printf("node: %v\n", n)
+
+	fmt.Printf("create a test container\n")
+
+	dockerTask, createResult := createContainer()
+	if createResult.Error != nil {
+		fmt.Printf(createResult.Error.Error())
+		os.Exit(1)
+	}
+	time.Sleep(time.Second * 5)
+
+	fmt.Printf("stopping container %s\n", createResult.ContainerId)
+	_ = stopContainer(dockerTask, createResult.ContainerId)
 }
 
 func createContainer() (*task.Docker, *task.DockerResult) {
