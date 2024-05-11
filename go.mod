@@ -11,6 +11,7 @@ require (
 	github.com/docker/docker v23.0.3+incompatible
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
+	github.com/joho/godotenv v1.5.1
 )
 
 require (
