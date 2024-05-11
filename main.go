@@ -68,7 +68,7 @@ func main() {
 
 	dockerTask, createResult := createContainer()
 	if createResult.Error != nil {
-		fmt.Printf(createResult.Error.Error())
+		fmt.Println(createResult.Error)
 		os.Exit(1)
 	}
 	time.Sleep(time.Second * 5)
@@ -80,7 +80,7 @@ func main() {
 func createContainer() (*task.Docker, *task.DockerResult) {
 	c := task.Config{
 		Name:  "test-container-1",
-		Image: "postgres:14",
+		Image: "postgres:13",
 		Env: []string{
 			"POSTGRES_USER=archon",
 			"POSTGRES_PASSWORD=secret",
@@ -105,6 +105,6 @@ func stopContainer(d *task.Docker, id string) *task.DockerResult {
 	if result.Error != nil {
 		fmt.Printf("%v\n", result.Error)
 	}
-	fmt.Printf("Container %s has been stopped and removed\n", result.ContainerId)
+	fmt.Printf("Container %s has been stopped and removed\n", id)
 	return &result
 }
