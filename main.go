@@ -2,48 +2,40 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/wtran29/go-orchestrator/task"
 	"github.com/wtran29/go-orchestrator/worker"
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic("Error loading .env file")
+	}
+	host := os.Getenv("ARCHON_HOST")
+	port, _ := strconv.Atoi(os.Getenv("ARCHON_PORT"))
+
 	db := make(map[uuid.UUID]*task.Task)
+
+	fmt.Println("Starting Archon worker")
+
 	w := worker.Worker{
 		Queue: *queue.New(),
 		Db:    db,
 	}
-	t := task.Task{
-		ID:    uuid.New(),
-		Name:  "test-container-1",
-		State: task.Scheduled,
-		Image: "strm/helloworld-http",
-	}
+	api := worker.Api{Address: host, Port: port, Worker: &w}
 
-	// first time the worker will see the task
-	fmt.Println("starting task")
-	w.AddTask(t)
-	result := w.RunTask()
-	if result.Error != nil {
-		panic(result.Error)
-	}
-	t.ContainerID = result.ContainerId
+	go runTasks(&w)
+	api.Start()
 
-	fmt.Printf("task %s is running in container %s\n", t.ID, t.ContainerID)
-	fmt.Println("sleep...")
-	time.Sleep(30 * time.Second)
-
-	fmt.Printf("stopping task %s\n", t.ID)
-	t.State = task.Completed
-	w.AddTask(t)
-	result = w.RunTask()
-	if result.Error != nil {
-		panic(result.Error)
-	}
 }
 
 func createContainer() (*task.Docker, *task.DockerResult) {
@@ -76,4 +68,19 @@ func stopContainer(d *task.Docker, id string) *task.DockerResult {
 	}
 	fmt.Printf("Container %s has been stopped and removed\n", id)
 	return &result
+}
+
+func runTasks(w *worker.Worker) {
+	for {
+		if w.Queue.Len() != 0 {
+			result := w.RunTask()
+			if result.Error != nil {
+				log.Printf("Error running task: %v\n", result.Error)
+			}
+		} else {
+			log.Printf("No tasks to process currently.\n")
+		}
+		log.Println("Sleeping for 10 seconds.")
+		time.Sleep(10 * time.Second)
+	}
 }
