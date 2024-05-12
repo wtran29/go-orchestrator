@@ -1,37 +1,44 @@
 package worker
 
 import (
-	"log"
-
-	"github.com/c9s/goprocinfo/linux"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/load"
+	"github.com/shirou/gopsutil/mem"
 )
 
 type Stats struct {
-	MemStats  *linux.MemInfo
-	DiskStats *linux.Disk
-	CpuStats  *linux.CPUStat
-	LoadStats *linux.LoadAvg
+	MemStats  *mem.VirtualMemoryStat
+	DiskStats *disk.UsageStat
+	CpuStats  []cpu.TimesStat
+	LoadStats *load.AvgStat
 	TaskCount int
 }
 
+// type LoadAvg struct {
+// 	Load1  float64 `json:"load1"`
+// 	Load5  float64 `json:"load5"`
+// 	Load15 float64 `json:"load15"`
+// }
+
 func (s *Stats) MemTotalKb() uint64 {
-	return s.MemStats.MemTotal
+	return s.MemStats.Total
 }
 
 func (s *Stats) MemAvailableKb() uint64 {
-	return s.MemStats.MemAvailable
+	return s.MemStats.Available
 }
 
 func (s *Stats) MemUsedKb() uint64 {
-	return s.MemStats.MemTotal - s.MemStats.MemAvailable
+	return s.MemStats.Used
 }
 
 func (s *Stats) MemUsedPercent() uint64 {
-	return s.MemStats.MemAvailable / s.MemStats.MemTotal
+	return uint64(s.MemStats.UsedPercent)
 }
 
 func (s *Stats) DiskTotal() uint64 {
-	return s.DiskStats.All
+	return s.DiskStats.Total
 }
 
 func (s *Stats) DiskFree() uint64 {
@@ -43,72 +50,90 @@ func (s *Stats) DiskUsed() uint64 {
 }
 
 type CPUStat struct {
-	Id        string `json:"id"`
-	User      uint64 `json:"user"`
-	Nice      uint64 `json:"nice"`
-	System    uint64 `json:"system"`
-	Idle      uint64 `json:"idle"`
-	IOWait    uint64 `json:"iowait"`
-	IRQ       uint64 `json:"irq"`
-	SoftIRQ   uint64 `json:"softirq"`
-	Steal     uint64 `json:"steal"`
-	Guest     uint64 `json:"guest"`
-	GuestNice uint64 `json:"guest_nice"`
+	Id        string  `json:"id"`
+	User      float64 `json:"user"`
+	Nice      float64 `json:"nice"`
+	System    float64 `json:"system"`
+	Idle      float64 `json:"idle"`
+	IOWait    float64 `json:"iowait"`
+	IRQ       float64 `json:"irq"`
+	SoftIRQ   float64 `json:"softirq"`
+	Steal     float64 `json:"steal"`
+	Guest     float64 `json:"guest"`
+	GuestNice float64 `json:"guest_nice"`
 }
 
-func (s *Stats) CpuUsage() float64 {
-	idle := s.CpuStats.Idle + s.CpuStats.IOWait
-	nonIdle := s.CpuStats.User + s.CpuStats.Nice + s.CpuStats.System + s.CpuStats.IRQ + s.CpuStats.Steal
-	total := idle + nonIdle
-
-	if total == 0 {
-		return 0.00
+func (s *Stats) CpuUsage() []CPUStat {
+	result := make([]CPUStat, len(s.CpuStats))
+	for i, stat := range s.CpuStats {
+		result[i] = CPUStat{
+			Id:        stat.CPU,
+			User:      stat.User,
+			System:    stat.System,
+			Idle:      stat.Idle,
+			Nice:      stat.Nice,
+			IOWait:    stat.Iowait,
+			IRQ:       stat.Irq,
+			SoftIRQ:   stat.Softirq,
+			Steal:     stat.Steal,
+			Guest:     stat.Guest,
+			GuestNice: stat.GuestNice,
+		}
 	}
 
-	return (float64(total) - float64(idle)/float64(total))
+	return result
 }
 
 func GetStats() *Stats {
+	memStats, _ := mem.VirtualMemory()
+	diskStats, _ := disk.Usage("/")
+	cpuStats, _ := cpu.Times(true)
+	loadAvgStats, _ := load.Avg()
 	return &Stats{
-		MemStats:  GetMemoryInfo(),
-		DiskStats: GetDiskInfo(),
-		CpuStats:  GetCpuStats(),
-		LoadStats: GetLoadAvg(),
+		MemStats:  memStats,
+		DiskStats: diskStats,
+		CpuStats:  cpuStats,
+		LoadStats: loadAvgStats,
 	}
 }
 
-func GetMemoryInfo() *linux.MemInfo {
-	memstats, err := linux.ReadMemInfo("/proc/meminfo")
-	if err != nil {
-		log.Printf("Error reading from /proc/meminfo")
-		return &linux.MemInfo{}
-	}
-	return memstats
-}
+// GetMemoryInfo See https://godoc.org/github.com/c9s/goprocinfo/linux#MemInfo
+// func GetMemoryInfo() *linux.MemInfo {
+// 	memstats, err := linux.ReadMemInfo("/proc/meminfo")
+// 	if err != nil {
+// 		log.Printf("Error reading from /proc/meminfo")
+// 		return &linux.MemInfo{}
+// 	}
+// 	return memstats
+// }
 
-func GetDiskInfo() *linux.Disk {
-	diskstats, err := linux.ReadDisk("/")
-	if err != nil {
-		log.Printf("Error reading from /")
-		return &linux.Disk{}
-	}
-	return diskstats
-}
+// GetDiskInfo See https://godoc.org/github.com/c9s/goprocinfo/linux#Disk
+// func GetDiskInfo() *linux.Disk {
+// 	diskstats, err := linux.ReadDisk("/")
+// 	if err != nil {
+// 		log.Printf("Error reading from /")
+// 		return &linux.Disk{}
+// 	}
+// 	return diskstats
+// }
 
-func GetCpuStats() *linux.CPUStat {
-	stats, err := linux.ReadStat("/proc/stat")
-	if err != nil {
-		log.Printf("Error reading from /proc/stat")
-		return &linux.CPUStat{}
-	}
-	return &stats.CPUStatAll
-}
+// GetCpuInfo See https://godoc.org/github.com/c9s/goprocinfo/linux#CPUStat
+// func GetCpuStats() *linux.CPUStat {
+// 	stats, err := linux.ReadStat("/proc/stat")
+// 	if err != nil {
+// 		log.Printf("Error reading from /proc/stat")
+// 		return &linux.CPUStat{}
+// 	}
+// 	return &stats.CPUStatAll
+// }
 
-func GetLoadAvg() *linux.LoadAvg {
-	loadavg, err := linux.ReadLoadAvg("/proc/loadavg")
-	if err != nil {
-		log.Printf("Error reading from /proc/loadavg")
-		return &linux.LoadAvg{}
-	}
-	return loadavg
-}
+// GetLoadAvg See https://godoc.org/github.com/c9s/goprocinfo/linux#LoadAvg
+// func GetLoadAvg() *linux.LoadAvg {
+// 	loadavg, err := linux.ReadLoadAvg("/proc/loadavg")
+// 	if err != nil {
+// 		log.Printf("Error reading from /proc/loadavg")
+// 		return &linux.LoadAvg{}
+// 	}
+
+// 	return loadavg
+// }
