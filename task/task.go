@@ -22,9 +22,10 @@ type Task struct {
 	ContainerID   string
 	Name          string
 	State         State
-	Image         string // what docker image task should use
-	Memory        int64  // amount of memory needed
-	Disk          int64  // amount of disk space needed
+	Image         string  // what docker image task should use
+	Cpu           float64 // amount of cpu usage
+	Memory        int64   // amount of memory needed
+	Disk          int64   // amount of disk space needed
 	ExposedPorts  nat.PortSet
 	PortBindings  map[string]string
 	RestartPolicy string // ["", "always", "unless-stopped", "on-failure"]
