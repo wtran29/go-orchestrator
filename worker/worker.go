@@ -16,6 +16,7 @@ type Worker struct {
 	Name      string
 	Queue     queue.Queue              // tasks handled in (FIFO)
 	Db        map[uuid.UUID]*task.Task // to keep track of tasks
+	Stats     *Stats                   // keep track of stats
 	TaskCount int                      //keep track of number of tasks as worker
 }
 
@@ -102,5 +103,10 @@ func (w *Worker) GetTasks() []*task.Task {
 
 // CollectStats periodically collect stats about the worker
 func (w *Worker) CollectStats() {
-	fmt.Println("collect stats")
+	for {
+		log.Println("Collecting stats")
+		w.Stats = GetStats()
+		w.TaskCount = w.Stats.TaskCount
+		time.Sleep(15 * time.Second)
+	}
 }
