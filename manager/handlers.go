@@ -20,11 +20,11 @@ func (a *Api) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
 	err := d.Decode(&te)
 	if err != nil {
 		msg := fmt.Sprintf("Error unmarshalling body: %v\n", err)
-		log.Printf(msg)
+		log.Println(msg)
 		w.WriteHeader(400)
 		e := ErrResponse{
 			HTTPStatusCode: 400,
-			Message: msg,
+			Message:        msg,
 		}
 		json.NewEncoder(w).Encode(e)
 		return
@@ -54,8 +54,8 @@ func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 	}
 	te := task.TaskEvent{
-		ID: uuid.New(),
-		State: task.Completed,
+		ID:        uuid.New(),
+		State:     task.Completed,
 		Timestamp: time.Now(),
 	}
 
@@ -64,6 +64,6 @@ func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 	te.Task = taskCopy
 	a.Manager.AddTask(te)
 
-	log.Printf("Add task event %v to stop task %v\n", te.ID)
+	log.Printf("Add task event %v to stop task %v\n", te.ID, taskToStop.ID)
 	w.WriteHeader(204)
 }
