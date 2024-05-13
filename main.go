@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/golang-collections/collections/queue"
@@ -21,8 +19,11 @@ func main() {
 	if err != nil {
 		panic("Error loading .env file")
 	}
-	host := os.Getenv("ARCHON_HOST")
-	port, _ := strconv.Atoi(os.Getenv("ARCHON_PORT"))
+	whost := os.Getenv("ARCHON_WHOST")
+	wport, _ := strconv.Atoi(os.Getenv("ARCHON_WPORT"))
+
+	mhost := os.Getenv("ARCHON_MHOST")
+	mport, _ := strconv.Atoi(os.Getenv("ARCHON_MPORT"))
 
 	db := make(map[uuid.UUID]*task.Task)
 
@@ -32,44 +33,50 @@ func main() {
 		Queue: *queue.New(),
 		Db:    db,
 	}
-	api := worker.Api{Address: host, Port: port, Worker: &w}
+	wapi := worker.Api{Address: whost, Port: wport, Worker: &w}
 
-	go runTasks(&w)
+	go w.RunTasks()
 	go w.CollectStats()
-	go api.Start()
+	go wapi.Start()
 
-	workers := []string{fmt.Sprintf("%s:%d", host, port)}
+	workers := []string{fmt.Sprintf("%s:%d", whost, wport)}
 	m := manager.New(workers)
+	mapi := manager.Api{Address: mhost, Port: mport, Manager: m}
 
-	for i := 0; i < 3; i++ {
-		t := task.Task {
-			ID: uuid.New(),
-			Name: fmt.Sprintf("test-container-%d", i),
-			State: task.Scheduled,
-			Image: "strm/helloworld-http",
-		}
-		te := task.TaskEvent{
-			ID: uuid.New(),
-			State: task.Running,
-			Task: t,
-		}
-		m.AddTask(te)
-		m.SendWork()
-	}
-	go func () {
-		for {
-			fmt.Printf("[Manager] Updating tasks from %d workers\n", len(workers))
-			m.UpdateTasks()
-			time.Sleep(15 * time.Second)
-		}
-	}()
+	go m.ProcessTasks()
+	go m.UpdateTasks()
 
-	for {
-		for _, t := range m.TaskDb {
-			fmt.Printf("[Manager] Tasks: id %s, state: %d\n", t.ID, t.State)
-			time.Sleep(15 * time.Second)
-		}
-	}
+	mapi.Start()
+
+	// for i := 0; i < 3; i++ {
+	// 	t := task.Task {
+	// 		ID: uuid.New(),
+	// 		Name: fmt.Sprintf("test-container-%d", i),
+	// 		State: task.Scheduled,
+	// 		Image: "strm/helloworld-http",
+	// 	}
+	// 	te := task.TaskEvent{
+	// 		ID: uuid.New(),
+	// 		State: task.Running,
+	// 		Task: t,
+	// 	}
+	// 	m.AddTask(te)
+	// 	m.SendWork()
+	// }
+	// go func () {
+	// 	for {
+	// 		fmt.Printf("[Manager] Updating tasks from %d workers\n", len(workers))
+	// 		m.UpdateTasks()
+	// 		time.Sleep(15 * time.Second)
+	// 	}
+	// }()
+
+	// for {
+	// 	for _, t := range m.TaskDb {
+	// 		fmt.Printf("[Manager] Tasks: id %s, state: %d\n", t.ID, t.State)
+	// 		time.Sleep(15 * time.Second)
+	// 	}
+	// }
 }
 
 func createContainer() (*task.Docker, *task.DockerResult) {
@@ -102,19 +109,4 @@ func stopContainer(d *task.Docker, id string) *task.DockerResult {
 	}
 	fmt.Printf("Container %s has been stopped and removed\n", id)
 	return &result
-}
-
-func runTasks(w *worker.Worker) {
-	for {
-		if w.Queue.Len() != 0 {
-			result := w.RunTask()
-			if result.Error != nil {
-				log.Printf("Error running task: %v\n", result.Error)
-			}
-		} else {
-			log.Printf("No tasks to process currently.\n")
-		}
-		log.Println("Sleeping for 10 seconds.")
-		time.Sleep(10 * time.Second)
-	}
 }
