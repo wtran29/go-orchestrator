@@ -151,3 +151,11 @@ func (m *Manager) SendWork() {
 func (m *Manager) AddTask(te task.TaskEvent) {
 	m.Pending.Enqueue(te)
 }
+
+func (m *Manager) GetTasks() []*task.Task {
+	tasks := []*task.Task{}
+	for _, t := range m.TaskDb {
+		tasks = append(tasks, t)
+	}
+	return tasks
+}
