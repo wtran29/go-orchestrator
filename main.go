@@ -25,23 +25,53 @@ func main() {
 	mhost := os.Getenv("ARCHON_MHOST")
 	mport, _ := strconv.Atoi(os.Getenv("ARCHON_MPORT"))
 
-	db := make(map[uuid.UUID]*task.Task)
-
 	fmt.Println("Starting Archon worker")
 
-	w := worker.Worker{
+	w1 := worker.Worker{
 		Queue: *queue.New(),
-		Db:    db,
+		Db:    make(map[uuid.UUID]*task.Task),
 	}
-	wapi := worker.Api{Address: whost, Port: wport, Worker: &w}
+	wapi1 := worker.Api{Address: whost, Port: wport, Worker: &w1}
 
-	go w.RunTasks()
-	go w.CollectStats()
-	go w.UpdateTasks()
-	go wapi.Start()
+	w2 := worker.Worker{
+		Queue: *queue.New(),
+		Db:    make(map[uuid.UUID]*task.Task),
+	}
+	wapi2 := worker.Api{Address: whost, Port: wport + 1, Worker: &w2}
 
-	workers := []string{fmt.Sprintf("%s:%d", whost, wport)}
-	m := manager.New(workers)
+	w3 := worker.Worker{
+		Queue: *queue.New(),
+		Db:    make(map[uuid.UUID]*task.Task),
+	}
+	wapi3 := worker.Api{Address: whost, Port: wport + 2, Worker: &w3}
+
+	go w1.RunTasks()
+	go w1.CollectStats()
+	go w1.UpdateTasks()
+	go wapi1.Start()
+
+	go w2.RunTasks()
+	go w2.CollectStats()
+	go w2.UpdateTasks()
+	go wapi2.Start()
+
+	go w3.RunTasks()
+	go w3.CollectStats()
+	go w3.UpdateTasks()
+	go wapi3.Start()
+
+	fmt.Println("Starting Archon manager")
+
+	workers := []string{
+		fmt.Sprintf("%s:%d", whost, wport),
+		fmt.Sprintf("%s:%d", whost, wport+1),
+		fmt.Sprintf("%s:%d", whost, wport+2),
+	}
+	m, err := manager.New(workers, "roundrobin")
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	mapi := manager.Api{Address: mhost, Port: mport, Manager: m}
 
 	go m.ProcessTasks()
