@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
+	"github.com/wtran29/go-orchestrator/stats"
 	"github.com/wtran29/go-orchestrator/task"
 )
 
@@ -16,7 +17,7 @@ type Worker struct {
 	Name      string
 	Queue     queue.Queue              // tasks handled in (FIFO)
 	Db        map[uuid.UUID]*task.Task // to keep track of tasks
-	Stats     *Stats                   // keep track of stats
+	Stats     *stats.Stats             // keep track of stats
 	TaskCount int                      //keep track of number of tasks as worker
 }
 
@@ -120,7 +121,7 @@ func (w *Worker) GetTasks() []*task.Task {
 func (w *Worker) CollectStats() {
 	for {
 		log.Println("Collecting stats")
-		w.Stats = GetStats()
+		w.Stats = stats.GetStats()
 		w.TaskCount = w.Stats.TaskCount
 		time.Sleep(15 * time.Second)
 	}
