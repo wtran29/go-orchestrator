@@ -125,3 +125,44 @@ func (w *Worker) CollectStats() {
 		time.Sleep(15 * time.Second)
 	}
 }
+
+// InspectTask method calls new Inspect method on the Docker struct
+func (w *Worker) InspectTask(t task.Task) task.DockerInspectResponse {
+	config := task.NewConfig(&t)
+	d := task.NewDocker(config)
+	return d.Inspect(t.ContainerID)
+}
+
+// UpdateTasks serves as a wrapper to updateTasks method
+func (w *Worker) UpdateTasks() {
+	for {
+		log.Println("Checking status of tasks")
+		w.updateTasks()
+		log.Println("Task updates completed")
+		log.Println("Sleeping for 15 seconds")
+		time.Sleep(15 * time.Second)
+	}
+}
+
+func (w *Worker) updateTasks() {
+	for id, t := range w.Db {
+		if t.State == task.Running {
+			// call InspectTask method to get task state from docker daemon
+			resp := w.InspectTask(*t)
+			if resp.Error != nil {
+				fmt.Printf("ERROR: %v", resp.Error)
+			}
+			// verify task is in running state
+			if resp.Container == nil {
+				log.Printf("No container for running task %s\n", id)
+				w.Db[id].State = task.Failed
+			}
+			// if not in running state, or not running at all, set task state to failed
+			if resp.Container.State.Status == "exited" {
+				log.Printf("Container for task %s in non-running state %s\n", id, resp.Container.State.Status)
+				w.Db[id].State = task.Failed
+			}
+			w.Db[id].HostPorts = resp.Container.NetworkSettings.NetworkSettingsBase.Ports
+		}
+	}
+}
