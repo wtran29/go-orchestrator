@@ -31,6 +31,9 @@ type Task struct {
 	RestartPolicy string // ["", "always", "unless-stopped", "on-failure"]
 	StartTime     time.Time
 	FinishTime    time.Time
+	HealthCheck   string
+	RestartCount  int
+	HostPorts     nat.PortMap
 }
 
 // TaskEvent represents an even that moves a Task from
@@ -160,4 +163,21 @@ func (d *Docker) Stop(id string) DockerResult {
 		return DockerResult{}
 	}
 	return DockerResult{Action: "stop", Result: "success", Error: nil}
+}
+
+type DockerInspectResponse struct {
+	Error     error
+	Container *types.ContainerJSON
+}
+
+// Inspect mthod calls Docker API to get authoritative state of a task's container
+func (d *Docker) Inspect(containerID string) DockerInspectResponse {
+	dc, _ := client.NewClientWithOpts(client.FromEnv)
+	ctx := context.Background()
+	resp, err := dc.ContainerInspect(ctx, containerID)
+	if err != nil {
+		log.Printf("Error inspecting container: %s\n", err)
+		return DockerInspectResponse{Error: err}
+	}
+	return DockerInspectResponse{Container: &resp}
 }
