@@ -31,6 +31,9 @@ func New(name string, taskDBtype string) *Worker {
 	switch taskDBtype {
 	case "memory":
 		s = store.NewInMemoryTaskStore()
+	case "persistent":
+		filename := fmt.Sprintf("%s_task.db", name)
+		s, err = store.NewTaskStore(filename, 0600, "tasks")
 	}
 	if err != nil {
 		log.Printf("unable to create new task store: %v", err)
