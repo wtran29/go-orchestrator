@@ -47,17 +47,18 @@ func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 	}
 	tid, _ := uuid.Parse(taskID)
-	_, ok := a.Worker.Db[tid]
-	if !ok {
+	taskToStop, err := a.Worker.Db.Get(tid.String())
+	if err != nil {
 		log.Printf("No task with ID %v found", tid)
 		w.WriteHeader(404)
 	}
-	taskToStop := a.Worker.Db[tid]
-	taskCopy := *taskToStop
+
+	// we need to make a copy so we are not modifying the task in the datastore
+	taskCopy := *taskToStop.(*task.Task)
 	taskCopy.State = task.Completed
 	a.Worker.AddTask(taskCopy)
 
-	log.Printf("Added task %v to stop container %v\n", taskToStop.ID, taskToStop.ContainerID)
+	log.Printf("Added task %v to stop container %v\n", taskCopy.ID.String(), taskCopy.ContainerID)
 	w.WriteHeader(204)
 }
 
