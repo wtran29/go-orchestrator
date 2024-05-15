@@ -21,7 +21,7 @@ get_mtask:
 
 delete_task:
 	curl -v --request DELETE \
-	'localhost:5556/tasks/21b23589-5d2d-4731-b5c9-a97e9832d021'
+	'localhost:5555/tasks/bb1d59ef-9fc1-4e4b-a44d-db571eeed203'
 
 echo:
 	docker run -p 7777:7777 --name echo timboring/echo-server:latest
@@ -35,5 +35,5 @@ health:
 healthfail:
 	 curl -v http://localhost:7777/healthfail
 
-task2:
-	curl -v -X POST localhost:5556/tasks -d @task2.json
+task1:
+	curl -v -X POST localhost:5555/tasks -d @task1.json

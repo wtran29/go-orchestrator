@@ -6,8 +6,6 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/client"
-	"github.com/golang-collections/collections/queue"
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/wtran29/go-orchestrator/manager"
 	"github.com/wtran29/go-orchestrator/task"
@@ -27,23 +25,17 @@ func main() {
 
 	fmt.Println("Starting Archon worker")
 
-	w1 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-	}
-	wapi1 := worker.Api{Address: whost, Port: wport, Worker: &w1}
+	// w1 := worker.Worker{
+	// 	Queue: *queue.New(),
+	// 	Db:    store.NewInMemoryTaskStore(),
+	// }
+	w1 := worker.New("worker-1", "memory")
+	w2 := worker.New("worker-2", "memory")
+	w3 := worker.New("worker-3", "memory")
 
-	w2 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-	}
-	wapi2 := worker.Api{Address: whost, Port: wport + 1, Worker: &w2}
-
-	w3 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-	}
-	wapi3 := worker.Api{Address: whost, Port: wport + 2, Worker: &w3}
+	wapi1 := worker.Api{Address: whost, Port: wport, Worker: w1}
+	wapi2 := worker.Api{Address: whost, Port: wport + 1, Worker: w2}
+	wapi3 := worker.Api{Address: whost, Port: wport + 2, Worker: w3}
 
 	go w1.RunTasks()
 	go w1.CollectStats()
@@ -67,7 +59,7 @@ func main() {
 		fmt.Sprintf("%s:%d", whost, wport+1),
 		fmt.Sprintf("%s:%d", whost, wport+2),
 	}
-	m, err := manager.New(workers, "roundrobin")
+	m := manager.New(workers, "epvm", "memory")
 	if err != nil {
 		fmt.Println(err)
 	}
