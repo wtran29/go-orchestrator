@@ -153,7 +153,15 @@ func (d *Docker) Stop(id string) DockerResult {
 		fmt.Printf("Error stopping container %s: %v\n", id, err)
 		return DockerResult{Error: err}
 	}
-	err = d.Client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+
+	return DockerResult{Action: "stop", Result: "success", Error: nil}
+}
+
+func (d *Docker) Remove(id string) DockerResult {
+	log.Printf("Attempting to stop container %v", id)
+	ctx := context.Background()
+
+	err := d.Client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		RemoveLinks:   false,
 		Force:         false,
@@ -162,7 +170,7 @@ func (d *Docker) Stop(id string) DockerResult {
 		log.Printf("Error removing container %s: %v\n", id, err)
 		return DockerResult{}
 	}
-	return DockerResult{Action: "stop", Result: "success", Error: nil}
+	return DockerResult{Action: "removed", Result: "success", Error: nil}
 }
 
 type DockerInspectResponse struct {
