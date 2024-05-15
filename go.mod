@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	github.com/c9s/goprocinfo v0.0.0-20210130143923-c95fcf8c64a8
+	github.com/boltdb/bolt v1.3.1
 	github.com/docker/docker v23.0.3+incompatible
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
@@ -18,7 +18,6 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
