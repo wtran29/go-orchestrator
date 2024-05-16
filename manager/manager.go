@@ -276,6 +276,7 @@ func (m *Manager) stopTask(worker string, taskID string) {
 
 // AddTask adds task to the manager's queue of pending tasks
 func (m *Manager) AddTask(te task.TaskEvent) {
+	log.Printf("Add event %v to pending queue", te)
 	m.Pending.Enqueue(te)
 }
 
@@ -287,7 +288,7 @@ func (m *Manager) GetTasks() []*task.Task {
 		log.Printf("error getting list of tasks: %v", err)
 		return nil
 	}
-	return taskList.([](*task.Task))
+	return taskList.([]*task.Task)
 }
 
 // checkTaskHealth is responsible for calling task's healthcheck url
@@ -387,5 +388,18 @@ func (m *Manager) DoHealthChecks() {
 		log.Println("Task health checks completed")
 		log.Println("Sleeping for 60 seconds")
 		time.Sleep(60 * time.Second)
+	}
+}
+
+func (m *Manager) UpdateNodeStats() {
+	for {
+		for _, node := range m.WorkerNodes {
+			log.Printf("Collecting stats for node %v", node.Name)
+			_, err := node.GetStats()
+			if err != nil {
+				log.Printf("error updating node stats: %v", err)
+			}
+		}
+		time.Sleep(15 * time.Second)
 	}
 }
