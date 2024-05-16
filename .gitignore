@@ -1,1 +1,7 @@
 .env
+
+tasks.db*
+worker-1_task.db*
+worker-2_task.db*
+worker-3_task.db*
+events.db*
