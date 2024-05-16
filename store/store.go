@@ -271,6 +271,7 @@ func (e *EventStore) Put(key string, value interface{}) error {
 		}
 		err = b.Put([]byte(key), buf)
 		if err != nil {
+			log.Printf("unable to save item %s", key)
 			return err
 		}
 		return nil
